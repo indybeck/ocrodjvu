@@ -50,14 +50,6 @@ class Saver(object):
 
     in_place = False
 
-    def __init__(self):
-        pass
-
-    @classmethod
-    def get_n_args(cls):
-        init_args, _, _, _ = inspect.getargspec(cls.__init__)
-        return len(init_args) - 1
-
     def check(self):
         pass
 
@@ -195,26 +187,6 @@ class EngineChoices(object):
     def __getitem__(self, key):
         return self._data[key]
 
-class HelpFormatter(argparse.HelpFormatter):
-
-    important_options = set(['-e', '-l', '-j'])
-
-    def add_usage(self, usage, actions, groups, prefix=None):
-        orig_actions = actions
-        actions = [
-            act for act in orig_actions
-            if set(act.option_strings) & self.important_options
-        ]
-        actions += [argparse.Action(['options'], 'options', nargs=0, required=False)]
-        actions += [
-            act for act in orig_actions
-            if (
-                act.required or
-                isinstance(act, ArgumentParser.set_output)
-            )
-        ]
-        return argparse.HelpFormatter.add_usage(self, usage, actions, groups, prefix)
-
 class ArgumentParser(cli.ArgumentParser):
 
     savers = BundledSaver, IndirectSaver, ScriptSaver, InPlaceSaver, DryRunSaver
@@ -233,15 +205,21 @@ class ArgumentParser(cli.ArgumentParser):
     )
 
     def __init__(self):
-        cli.ArgumentParser.__init__(self, formatter_class=HelpFormatter)
+        usage = '%(prog)s [options] FILE'
+        cli.ArgumentParser.__init__(self, usage=usage)
         self.add_argument('--version', action=version.VersionAction)
         group = self.add_argument_group(title='options controlling output')
-        saver_group = group.add_mutually_exclusive_group(required=True)
         for saver_type in self.savers:
             options = saver_type.options
-            n_args = saver_type.get_n_args()
-            metavar = [None, 'FILE'][n_args]
-            saver_group.add_argument(
+            try:
+                init_args, _, _, _ = inspect.getargspec(saver_type.__init__)
+                n_args = len(init_args) - 1
+            except TypeError:
+                n_args = 0
+            metavar = None
+            if n_args == 1:
+                metavar = 'FILE'
+            group.add_argument(
                 *options,
                 **dict(
                     metavar=metavar,
@@ -258,18 +236,11 @@ class ArgumentParser(cli.ArgumentParser):
         self.add_argument('--list-engines', action=self.list_engines, nargs=0, help='print list of available OCR engines')
         self.add_argument('-l', '--language', dest='language', help='set recognition language')
         self.add_argument('--list-languages', action=self.list_languages, nargs=0, help='print list of available languages')
-        self.add_argument('--render', dest='render_layers', choices=self._render_map.keys(), action='store', default='mask', help='image layers to render')
+        self.add_argument('--render', dest='render_layers', choices=list(self._render_map.keys()), action='store', default='mask', help='image layers to render')
         def pages(x):
             return utils.parse_page_numbers(x)
         self.add_argument('-p', '--pages', dest='pages', action='store', default=None, type=pages, help='pages to process')
-        def jobs(s):
-            if s == 'auto':
-                return utils.get_cpu_count()
-            n = int(s)
-            if n <= 0:
-                raise ValueError
-            return n
-        self.add_argument('-j', '--jobs', dest='n_jobs', metavar='N', type=jobs, default=1, help='start N OCR threads')
+        self.add_argument('-j', '--jobs', dest='n_jobs', metavar='N', nargs='?', type=int, default=1, help='number of jobs to run simultaneously')
         self.add_argument('path', metavar='FILE', help='DjVu file to process')
         group = self.add_argument_group(title='text segmentation options')
         group.add_argument('-t', '--details', dest='details', choices=('lines', 'words', 'chars'), action='store', default='words', help='amount of text details to extract')
@@ -278,7 +249,7 @@ class ArgumentParser(cli.ArgumentParser):
         group.add_argument('-D', '--debug', dest='debug', action='store_true', default=False, help='''don't delete intermediate files''')
         group.add_argument('-X', dest='properties', metavar='KEY=VALUE', help='set an engine-specific property', action='append', default=[])
         group.add_argument('--on-error', choices=('abort', 'resume'), default='abort', help='error handling strategy')
-        group.add_argument('--html5', dest='html5', action='store_true', help='use HTML5 parser')
+        group.add_argument('--html5', dest='html5', action='store_true', help='use HTML5 parse')
 
     class list_engines(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -311,7 +282,12 @@ class ArgumentParser(cli.ArgumentParser):
             self.saver_type = kwargs.pop('saver_type')
             argparse.Action.__init__(self, **kwargs)
         def __call__(self, parser, namespace, values, option_string=None):
-            namespace.saver = self.saver_type(*values)
+            try:
+                namespace.saver
+            except AttributeError:
+                namespace.saver = self.saver_type(*values)
+            else:
+                namespace.saver = None
 
     def parse_args(self, args=None, namespace=None):
         options = cli.ArgumentParser.parse_args(self, args, namespace)
@@ -319,12 +295,23 @@ class ArgumentParser(cli.ArgumentParser):
         options.render_layers = self._render_map[options.render_layers]
         options.resume_on_error = options.on_error == 'resume'
         try:
-            options.saver.check()
-        except OSError as exc:
-            errors.fatal('cannot find {path!r}: {msg}'.format(
-                path=exc.filename,
-                msg=exc.strerror,
-            ))
+            saver = options.saver
+        except AttributeError:
+            saver = None
+        if saver is None:
+            self.error(
+                'exactly one of the following options is required: {opt}'.format(
+                    opt=', '.join('/'.join(saver.options) for saver in self.savers)
+                )
+            )
+        else:
+            try:
+                saver.check()
+            except OSError as exc:
+                errors.fatal('cannot find {path!r}: {msg}'.format(
+                    path=exc.filename,
+                    msg=exc.strerror,
+                ))
         if options.save_raw_ocr_dir is not None:
             try:
                 os.stat(os.path.join(options.save_raw_ocr_dir, ''))
@@ -369,7 +356,7 @@ class ArgumentParser(cli.ArgumentParser):
         except errors.EngineNotFound as ex:
             msg = str(ex)
             if implicit_default_engine:
-                msg += '; use -e/--engine to select another engine'
+                msg += '; use -e/--engine to use another engine'
             errors.fatal(msg)
         try:
             options.engine.check_language(options.language)
@@ -383,6 +370,8 @@ class ArgumentParser(cli.ArgumentParser):
         options.uax29 = options.language if options.word_segmentation == 'uax29' else None
         if options.n_jobs is None:
             options.n_jobs = utils.get_cpu_count()
+        elif options.n_jobs < 1:
+            options.n_jobs = 1
         return options
 
 class Results(dict):
@@ -524,7 +513,7 @@ class Context(djvu.decode.Context):
         condition = threading.Condition()
         threads = [
             threading.Thread(target=self.page_thread, args=(pages, results, condition))
-            for i in xrange(njobs)
+            for i in range(njobs)
         ]
         def stop_threads():
             with condition:
@@ -549,7 +538,7 @@ class Context(djvu.decode.Context):
                     sed_file.write("select '{fileid}'\n".format(
                         fileid=file_id.replace('\\', '\\\\').replace("'", "\\'")
                     ))
-                sed_file.write('set-txt\n')
+                sed_file.write(b'set-txt\n')
                 result = None
                 with condition:
                     while True:

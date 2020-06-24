@@ -49,28 +49,32 @@ _bbox_extras_template = '''\
 </script>
 '''
 
-def _filter_boring_stderr(stderr):
-    if stderr and stderr[0].startswith('Tesseract Open Source OCR Engine'):
+def _is_stderr_boring(stderr):
+    if len(stderr) > 2:
+        return False
+    for line in stderr:
         # Tesseract prints its own name on standard error
         # even if nothing went wrong.
-        del stderr[0]
-    if stderr and stderr[0] == 'Page 1':
         # We also don't want page numbers,
         # because we always pass just a single page to Tesseract.
-        del stderr[0]
+        if line.startswith(('Tesseract Open Source OCR Engine', 'Page ')):
+            continue
+        else:
+            return False
+    return True
 
 def _wait_for_worker(worker):
-    stderr = worker.stderr.read().splitlines()
-    def print_errors():
-        for line in stderr:
-            print('tesseract: {0}'.format(line), file=sys.stderr)
+    stderr = worker.stderr.readlines()
     try:
         worker.wait()
     except Exception:
-        print_errors()
+        for line in stderr:
+            sys.stderr.write('tesseract: {0}'.format(line))
         raise
-    _filter_boring_stderr(stderr)
-    print_errors()
+    if _is_stderr_boring(stderr):
+        return
+    for line in stderr:
+        sys.stderr.write('tesseract: {0}'.format(line))
 
 def fix_html(s):
     '''
@@ -133,15 +137,14 @@ class Engine(common.Engine):
     def get_filesystem_info(self):
         try:
             tesseract = ipc.Subprocess([self.executable, '', '', '-l', 'nonexistent'],
-                stdin=ipc.DEVNULL,
-                stdout=ipc.DEVNULL,
+                stdout=ipc.PIPE,
                 stderr=ipc.PIPE,
             )
         except OSError:
             raise errors.UnknownLanguageList
         try:
             stderr = tesseract.stderr.read()
-            match = _error_pattern.search(stderr)
+            match = _error_pattern.search(stderr.decode('utf-8'))
             if match is None:
                 raise errors.UnknownLanguageList
             directory = match.group('dir')
@@ -207,8 +210,7 @@ class Engine(common.Engine):
         with temporary.directory() as output_dir:
             worker = ipc.Subprocess(
                 [self.executable, image.name, os.path.join(output_dir, 'tmp'), '-l', language] + self.extra_args,
-                stdin=ipc.DEVNULL,
-                stdout=ipc.DEVNULL,
+                stdout=ipc.PIPE,
                 stderr=ipc.PIPE,
             )
             _wait_for_worker(worker)
@@ -240,8 +242,7 @@ class Engine(common.Engine):
                 commandline += ['makebox']
             worker = ipc.Subprocess(
                 commandline,
-                stdin=ipc.DEVNULL,
-                stdout=ipc.DEVNULL,
+                stdout=ipc.PIPE,
                 stderr=ipc.PIPE,
             )
             _wait_for_worker(worker)
@@ -259,8 +260,6 @@ class Engine(common.Engine):
                     del commandline[-2]
                     worker = ipc.Subprocess(
                         commandline,
-                        stdin=ipc.DEVNULL,
-                        stdout=ipc.DEVNULL,
                         stderr=ipc.PIPE,
                     )
                     _wait_for_worker(worker)

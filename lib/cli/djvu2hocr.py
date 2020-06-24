@@ -1,6 +1,6 @@
 # encoding=UTF-8
 
-# Copyright © 2009-2019 Jakub Wilk <jwilk@jwilk.net>
+# Copyright © 2009-2018 Jakub Wilk <jwilk@jwilk.net>
 #
 # This file is part of ocrodjvu.
 #
@@ -13,7 +13,7 @@
 # FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 # for more details.
 
-from __future__ import print_function
+#from __future__ import print_function
 
 import argparse
 import cgi
@@ -99,7 +99,7 @@ class Zone(object):
             raise TypeError('list of {0} (!= 6) elements'.format(len(self._sexpr)))  # no coverage
         if not isinstance(self._sexpr[5], sexpr.StringExpression):
             raise TypeError('last element is not a string')  # no coverage
-        return unicode(self._sexpr[5].value, 'UTF-8', 'replace')
+        return str(self._sexpr[5].value, 'UTF-8', 'replace')
 
     @property
     def children(self):
@@ -121,7 +121,7 @@ class Zone(object):
         return '{tp}({sexpr!r})'.format(tp=type(self).__name__, sexpr=self._sexpr)
 
 _xml_string_re = re.compile(
-    u'''
+    '''
     ([^\x00-\x08\x0B\x0C\x0E-\x1F]*)
     ( [\x00-\x08\x0B\x0C\x0E-\x1F]?)
     ''',
@@ -172,7 +172,7 @@ def break_chars(char_zone_list, options):
             i = j
             continue
         bbox = text_zones.BBox()
-        for k in xrange(i, j):
+        for k in range(i, j):
             bbox.update(bbox_list[k])
         element = etree.Element('span')
         element.set('class', 'ocrx_word')
@@ -185,7 +185,9 @@ def break_chars(char_zone_list, options):
         i = j
 
 def break_plain_text(text, bbox, options):
-    break_iterator = unicode_support.word_break_iterator(text, options.locale)
+    icu_text = options.icu.UnicodeString(text)
+    break_iterator = options.icu.BreakIterator.createWordInstance(options.locale)
+    break_iterator.setText(icu_text)
     i = 0
     element = None
     for j in break_iterator:
@@ -244,7 +246,7 @@ def process_zone(parent, zone, last, options):
         if child is not None and zone_type == const.TEXT_ZONE_WORD and not last:
             child.tail = ' '
         self = None
-    elif isinstance(child_zone, unicode):
+    elif isinstance(child_zone, str):
         text = child_zone
         if zone_type >= const.TEXT_ZONE_WORD and options.icu is not None and parent is not None:
             # Do word segmentation by hand.
@@ -302,12 +304,17 @@ def main(argv=sys.argv):
             n_pages = int(djvused.stdout.readline())
         finally:
             djvused.wait()
-        options.pages = xrange(1, n_pages + 1)
+        options.pages = list(range(1, n_pages + 1))
     page_iterator = iter(options.pages)
-    sed_script = temporary.file(suffix='.djvused')
-    for n in options.pages:
-        print('select {0}; size; print-txt'.format(n), file=sed_script)
-    sed_script.flush()
+    sed_script = temporary.file(suffix='.djvused', mode='w')
+    try:
+        for n in options.pages:
+            sed_script.write("select {0}; size; print-txt".format(n))
+            #print("select {0}; size; print-txt".format(n), file=sed_script)
+    finally:
+        sed_script.flush()
+        #sed_script.close()
+
     djvused = ipc.Subprocess(
         ['djvused', '-f', sed_script.name, os.path.abspath(options.path)],
         stdout=ipc.PIPE,
@@ -326,7 +333,7 @@ def main(argv=sys.argv):
         try:
             page_size = [
                 int(str(sexpr.Expression.from_stream(djvused.stdout).value).split('=')[1])
-                for i in xrange(2)
+                for i in range(2)
             ]
             options.page_bbox = text_zones.BBox(0, 0, page_size[0], page_size[1])
             page_text = sexpr.Expression.from_stream(djvused.stdout)

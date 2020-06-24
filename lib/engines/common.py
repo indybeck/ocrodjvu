@@ -33,7 +33,7 @@ class Engine(object):
             raise TypeError('{tp}.name must be a string'.format(tp=tpname))  # no coverage
         if not issubclass(self.image_format, image_io.ImageFormat):
             raise TypeError('{tp}.image_format must be an ImageFormat subclass'.format(tp=tpname))  # no coverage
-        for key, value in kwargs.iteritems():
+        for key, value in list(kwargs.items()):
             try:
                 prop = getattr(type(self), key)
                 if not isinstance(prop, utils.property):
@@ -60,9 +60,9 @@ class Output(object):
     def save(self, prefix):
         path = '{base}.{ext}'.format(base=prefix, ext=self.format)
         with open(path, 'wb') as file:
-            file.write(str(self))
+            file.write(str(self).encode())
 
     def as_stringio(self):
-        return io.BytesIO(str(self))
+        return io.BytesIO(str(self).encode())
 
 # vim:ts=4 sts=4 sw=4 et

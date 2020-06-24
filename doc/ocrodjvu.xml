@@ -2,7 +2,7 @@
 <!DOCTYPE refentry PUBLIC '-//OASIS//DTD DocBook XML V4.5//EN' 'http://www.docbook.org/xml/4.5/docbookx.dtd'
 [
     <!ENTITY p 'ocrodjvu'>
-    <!ENTITY version '0.12'>
+    <!ENTITY version '0.11'>
 ]>
 
 <refentry>
@@ -10,7 +10,6 @@
 <refentryinfo>
     <title>&p; manual</title>
     <productname>ocrodjvu</productname>
-    <date>2019-03-02</date>
     <author>
         <firstname>Jakub</firstname> <surname>Wilk</surname>
         <email>jwilk@jwilk.net</email>
@@ -95,16 +94,16 @@
             </para>
         </listitem>
         <listitem>
-            <para><ulink url='https://launchpad.net/cuneiform-linux'><application>Cuneiform for Linux</application></ulink>;</para>
+            <para><ulink url='https://launchpad.net/cuneiform-linux'><application>Cuneiform for Linux</application></ulink>.</para>
         </listitem>
         <listitem>
-            <para><ulink url='https://www.gnu.org/software/ocrad/'><application>Ocrad</application></ulink>;</para>
+            <para><ulink url='https://www.gnu.org/software/ocrad/'><application>Ocrad</application></ulink>.</para>
         </listitem>
         <listitem>
-            <para><ulink url='http://www-e.uni-magdeburg.de/jschulen/ocr/'><application>GOCR</application></ulink>;</para>
+            <para><ulink url='http://www-e.uni-magdeburg.de/jschulen/ocr/'><application>GOCR</application></ulink>.</para>
         </listitem>
         <listitem>
-            <para>stand-alone <ulink url='https://github.com/tesseract-ocr/tesseract'><application>Tesseract</application></ulink>.</para>
+            <para>Stand-alone <ulink url='https://github.com/tesseract-ocr/tesseract'><application>Tesseract</application></ulink>.</para>
         </listitem>
         </itemizedlist>
     </para>
@@ -350,7 +349,7 @@
                     <quote><literal>+</literal></quote> characters.
                 </para>
                 <para>
-                    The default is <quote><literal>eng</literal></quote> (English).
+                    The default is always <quote><literal>eng</literal></quote> (English).
                 </para>
             </listitem>
         </varlistentry>
@@ -411,9 +410,7 @@
             <term><option>--jobs=<replaceable>n</replaceable></option></term>
             <listitem>
                 <para>
-                    Start <replaceable>n</replaceable> OCR threads.
-                    <replaceable>n</replaceable> can be a positive integer,
-                    or “<literal>auto</literal>” to use the number of CPU cores.
+                    Start up to <replaceable>n</replaceable> OCR threads.
                 </para>
                 <para>
                     The default is 1.
@@ -518,7 +515,7 @@
         <varlistentry>
             <term><varname>TMPDIR</varname></term>
             <!-- As per IEEE Std 1003.1, 2004 Edition, “8.3 Other Environment Variables”:
-            https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html#tag_08_03
+            http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html#tag_08_03
             -->
             <listitem>
                 <para>

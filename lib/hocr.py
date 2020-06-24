@@ -68,7 +68,8 @@ _djvu_zone_to_hocr = {
     const.TEXT_ZONE_LINE: ('span', 'ocrx_line'),
     const.TEXT_ZONE_WORD: ('span', 'ocrx_word'),
 }
-djvu2hocr_capabilities = list(sorted(cls for tag, cls in _djvu_zone_to_hocr.itervalues()))
+#djvu2hocr_capabilities = list(sorted(cls for tag, cls in _djvu_zone_to_hocr.itervalues()))
+djvu2hocr_capabilities = list(sorted(cls for tag, cls in list(_djvu_zone_to_hocr.values())))
 djvu_zone_to_hocr = _djvu_zone_to_hocr.__getitem__
 del _djvu_zone_to_hocr
 
@@ -121,13 +122,15 @@ def _apply_bboxes(djvu_class, bbox_source, text, settings, page_size):
         # Tesseract ≥ 3.0 sometimes returns series of “empty” words. Let's
         # ignore those.
         return []
-    if isinstance(bbox_source, basestring):
+    #if isinstance(bbox_source, basestring):
+    if isinstance(bbox_source, str):
         # bboxes from plain old hOCR property
         m = bboxes_re.search(bbox_source)
         if not m:
             return [text]
         coordinates = (int(x) for x in m.group(1).replace(',', ' ').split())
-        coordinates = zip(coordinates, coordinates, coordinates, coordinates)
+        #coordinates = zip(coordinates, coordinates, coordinates, coordinates)
+        coordinates = list(zip(coordinates, coordinates, coordinates, coordinates))
     else:
         # bboxes from an iterator
         coordinates = []
@@ -164,7 +167,8 @@ def _apply_bboxes(djvu_class, bbox_source, text, settings, page_size):
                 i = j
                 continue
             bbox = text_zones.BBox()
-            for k in xrange(i, j):
+            #for k in xrange(i, j):
+            for k in range(i, j):
                 if settings.cuneiform and coordinates[k] == (-1, -1, -1, -1):
                     raise errors.MalformedHocr("missing bbox for non-whitespace character")
                 bbox.update(text_zones.BBox(*coordinates[k]))
@@ -175,7 +179,8 @@ def _apply_bboxes(djvu_class, bbox_source, text, settings, page_size):
             else:
                 last_word += [
                     text_zones.Zone(type=const.TEXT_ZONE_CHARACTER, bbox=(x0, y0, x1, y1), children=[ch])
-                    for k in xrange(i, j)
+                    #for k in xrange(i, j)
+                    for k in range(i, j)
                     for (x0, y0, x1, y1), ch in [(coordinates[k], text[k])]
                 ]
             i = j
@@ -200,7 +205,8 @@ def _scan(node, settings, page_size=None):
                 result += [child.tail]
         return result
 
-    if not isinstance(node.tag, basestring) or node.tag == 'script':
+    #if not isinstance(node.tag, basestring) or node.tag == 'script':
+    if not isinstance(node.tag, str) or node.tag == 'script':
         # Ignore non-elements.
         return []
 
@@ -263,7 +269,8 @@ def _scan(node, settings, page_size=None):
         return empty
 
     for child in children:
-        if isinstance(child, basestring):
+        #if isinstance(child, basestring):
+        if isinstance(child, str):
             has_string = True
             if child and not child.isspace():
                 has_nonempty_string = True
@@ -290,7 +297,7 @@ def _scan(node, settings, page_size=None):
                 if isinstance(child, text_zones.Zone):
                     bbox.update(child.bbox)
         if djvu_class >= const.TEXT_ZONE_LINE:
-            if isinstance(children[-1], basestring) and children[-1].isspace():
+            if isinstance(children[-1], str) and children[-1].isspace():
                 del children[-1]
 
     if djvu_class <= const.TEXT_ZONE_WORD:
@@ -301,7 +308,7 @@ def _scan(node, settings, page_size=None):
                 raise errors.MalformedHocr("zone without bounding box information")
             text = ''.join(children)
             children = _apply_bboxes(djvu_class, settings.bbox_data or title, text, settings, page_size)
-            if len(children) == 1 and isinstance(children[0], basestring):
+            if len(children) == 1 and isinstance(children[0], str):
                 result = text_zones.Zone(type=const.TEXT_ZONE_CHARACTER, bbox=bbox, children=children)
                 # We return TEXT_ZONE_CHARACTER even it was a word according to hOCR.
                 # Words need to be regrouped anyway.
@@ -324,7 +331,7 @@ def _scan(node, settings, page_size=None):
         children = _apply_bboxes(djvu_class, settings.bbox_data or title, text, settings, page_size)
         if len(children) == 0:
             return empty
-        if isinstance(children[0], basestring):
+        if isinstance(children[0], str):
             # Get rid of e.g. trailing newlines.
             children[0] = children[0].rstrip()
             has_zone = has_nonchar_zone = has_char_zone = False
@@ -347,7 +354,7 @@ def _scan(node, settings, page_size=None):
 
     if has_zone and has_string:
         assert not has_nonempty_string
-        children = [child for child in children if not isinstance(child, basestring)]
+        children = [child for child in children if not isinstance(child, str)]
         if len(children) == 0:
             return empty
 
@@ -362,7 +369,7 @@ def _scan(node, settings, page_size=None):
             return []
         if len(children) == 1:
             [child] = children
-            if isinstance(child, basestring) and (child == '' or child.isspace()):
+            if isinstance(child, str) and (child == '' or child.isspace()):
                 return []
         raise errors.MalformedHocr("text zone without bounding box information")
 
@@ -371,7 +378,7 @@ def _scan(node, settings, page_size=None):
 def scan(node, settings):
     result = []
     for zone in _scan(node, settings, settings.page_size):
-        if isinstance(zone, basestring):
+        if isinstance(zone, str):
             if zone == '' or zone.isspace():
                 continue
             else:
@@ -407,7 +414,8 @@ def extract_tesseract_bbox_data(node):
         if not line or line.startswith('//'):
             continue
         chars, x0, y0, x1, y1, w = line.split()
-        x0, y0, x1, y1 = map(int, (x0, y0, x1, y1))
+        #x0, y0, x1, y1 = map(int, (x0, y0, x1, y1))
+        x0, y0, x1, y1 = list(map(int, (x0, y0, x1, y1)))
         if chars == '~':
             chars = [None]
         w = x1 - x0

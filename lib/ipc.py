@@ -22,18 +22,20 @@ import pipes
 import re
 import signal
 import warnings
+import subprocess
 
 from . import utils
 
-try:
-    import subprocess32 as subprocess
-except ImportError:  # no coverage
-    import subprocess
-    if os.name == 'posix':
-        exc = RuntimeWarning('the subprocess module is not thread-safe')
-        utils.enhance_import_error(exc, 'subprocess32', 'python-subprocess32', 'https://pypi.org/project/subprocess32/')
-        warnings.warn(exc, category=type(exc))
-        del exc
+thread_safe = True
+# try:
+#     import subprocess32 as subprocess
+# except ImportError:  # no coverage
+#     import subprocess
+#     if os.name == 'posix':
+#         exc = Warning('the subprocess module is not thread-safe')
+#         utils.enhance_import_error(exc, 'subprocess32', 'python-subprocess32', 'https://pypi.org/project/subprocess32/')
+#         warnings.warn(exc)
+#         del exc
 
 # CalledProcessError, CalledProcessInterrupted
 # ============================================
@@ -61,7 +63,8 @@ def get_signal_names():
             del data['SIGCLD']
     except KeyError:  # no coverage
         pass
-    return dict((no, name) for name, no in data.iteritems())
+    #return dict((no, name) for name, no in data.iteritems())
+    return dict((no, name) for name, no in list(data.items()))
 
 CalledProcessError = subprocess.CalledProcessError
 
@@ -93,7 +96,8 @@ class Subprocess(subprocess.Popen):
         lc_ctype = env.get('LC_ALL') or env.get('LC_CTYPE') or env.get('LANG')
         env = dict(
             (k, v)
-            for k, v in env.iteritems()
+            #for k, v in env.iteritems()
+            for k, v in list(env.items())
             if not (k.startswith('LC_') or k in ('LANG', 'LANGUAGE'))
         )
         if lc_ctype:
@@ -135,14 +139,6 @@ class Subprocess(subprocess.Popen):
 
 PIPE = subprocess.PIPE
 
-# DEVNULL
-# =======
-
-try:
-    DEVNULL = subprocess.DEVNULL
-except AttributeError:
-    DEVNULL = open(os.devnull, 'rw')
-
 # require()
 # =========
 
@@ -164,7 +160,7 @@ logger = logging.getLogger('ocrodjvu.ipc')
 
 __all__ = [
     'CalledProcessError', 'CalledProcessInterrupted',
-    'Subprocess', 'PIPE', 'DEVNULL',
+    'Subprocess', 'PIPE',
     'require',
 ]
 

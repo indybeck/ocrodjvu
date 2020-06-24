@@ -1,6 +1,6 @@
 # encoding=UTF-8
 
-# Copyright © 2010-2019 Jakub Wilk <jwilk@jwilk.net>
+# Copyright © 2010-2018 Jakub Wilk <jwilk@jwilk.net>
 #
 # This file is part of ocrodjvu.
 #
@@ -57,14 +57,6 @@ class test_word_break_iterator():
         s = [1, 7, 8, 9, 10, 15, 16, 24, 25, 26, 30, 31, 32, 33, 37, 38, 43, 44, 45, 46, 47, 48, 54, 55, 57, 58, 61, 62, 65, 66, 67]
         assert_equal(t, s)
         assert_equal(s[-1], len(text))
-
-    def test_en_simple(self):
-        # Trigger reference-counting bug that was fixed in PyICU 1.0.1:
-        # https://github.com/ovalhub/pyicu/commit/515e076682e29d806aeb5f6b1016b799d03d92a9
-        icu = get_icu()
-        assert_not_equal(icu, None)
-        t = list(word_break_iterator('eggs', icu.Locale('en')))
-        assert_equal(t, [4])
 
     def test_en_empty(self):
         icu = get_icu()

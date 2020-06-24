@@ -164,25 +164,25 @@ class TIFF(ImageFormat):
         n_tags = 9
         data_offset = 28 + n_tags * 12
         header = []
-        header += struct.pack('<ccHI', 'I', 'I', 42, 22),  # main header
-        header += struct.pack('<HHH', 8, 8, 8),  # bits per sample
-        header += struct.pack('<II', page_job.dpi, 1),  # resolution
-        header += struct.pack('<H', n_tags),  # number of tags
-        header += struct.pack('<HHII', 0x100, 4, 1, size[0]),  # ImageWidth
-        header += struct.pack('<HHII', 0x101, 4, 1, size[1]),  # ImageLength
+        header += struct.pack(b'<ccHI', b'I', b'I', 42, 22),  # main header
+        header += struct.pack(b'<HHH', 8, 8, 8),  # bits per sample
+        header += struct.pack(b'<II', page_job.dpi, 1),  # resolution
+        header += struct.pack(b'<H', n_tags),  # number of tags
+        header += struct.pack(b'<HHII', 0x100, 4, 1, size[0]),  # ImageWidth
+        header += struct.pack(b'<HHII', 0x101, 4, 1, size[1]),  # ImageLength
         if interp > 0:
-            header += struct.pack('<HHII', 0x102, 3, 3, 8),  # BitsPerSample
+            header += struct.pack(b'<HHII', 0x102, 3, 3, 8),  # BitsPerSample
         else:
-            header += struct.pack('<HHII', 0x102, 3, 1, 1),  # BitsPerSample
-        header += struct.pack('<HHIHxx', 0x106, 3, 1, interp),  # PhotometricInterpretation
-        header += struct.pack('<HHII', 0x111, 4, 1, data_offset),  # StripOffsets
-        header += struct.pack('<HHIHxx', 0x115, 3, 1, spp),  # SamplesPerPixel
-        header += struct.pack('<HHII', 0x117, 4, 1, len(data)),  # StripByteCounts
-        header += struct.pack('<HHII', 0x11A, 5, 1, 14),  # XResolution
-        header += struct.pack('<HHII', 0x11B, 5, 1, 14),  # YResolution
-        header += struct.pack('<I', 0),  # offset to next IFD
+            header += struct.pack(b'<HHII', 0x102, 3, 1, 1),  # BitsPerSample
+        header += struct.pack(b'<HHIHxx', 0x106, 3, 1, interp),  # PhotometricInterpretation
+        header += struct.pack(b'<HHII', 0x111, 4, 1, data_offset),  # StripOffsets
+        header += struct.pack(b'<HHIHxx', 0x115, 3, 1, spp),  # SamplesPerPixel
+        header += struct.pack(b'<HHII', 0x117, 4, 1, len(data)),  # StripByteCounts
+        header += struct.pack(b'<HHII', 0x11A, 5, 1, 14),  # XResolution
+        header += struct.pack(b'<HHII', 0x11B, 5, 1, 14),  # YResolution
+        header += struct.pack(b'<I', 0),  # offset to next IFD
         assert len(header) == n_tags + 5
-        header = ''.join(header)
+        header = b''.join(header)
         assert len(header) == data_offset
         file.write(header)
         file.write(data)
